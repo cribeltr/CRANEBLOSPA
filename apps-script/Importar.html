@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; margin: 16px; }
+    h3 { margin: 0 0 8px; color: #1c4587; }
+    ol { padding-left: 18px; line-height: 1.5; }
+    input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; margin: 8px 0; }
+    button { background: #1c4587; color: #fff; border: 0; padding: 9px 14px; border-radius: 4px; cursor: pointer; }
+    button:disabled { background: #9bb0cf; cursor: default; }
+    .muted { color: #666; }
+    #msg { margin-top: 12px; padding: 8px; border-radius: 4px; display: none; }
+    .ok { background: #e6f4ea; color: #137333; }
+    .err { background: #fce8e6; color: #c5221f; }
+  </style>
+</head>
+<body>
+  <h3>Importar PMP / Registro</h3>
+  <p class="muted">
+    Importa el archivo <b>Programación MP 2026</b> previamente subido a Google Sheets.
+  </p>
+  <ol>
+    <li>Sube el archivo <code>.xlsm</code> a Google Drive y ábrelo con <b>Hojas de cálculo de Google</b>
+        (esto crea una copia convertida con las hojas <code>PMP_2026</code> y <code>Registro_MP-2026</code>).</li>
+    <li>Copia la URL de ese libro convertido y pégala aquí abajo.</li>
+  </ol>
+
+  <input type="text" id="url" placeholder="https://docs.google.com/spreadsheets/d/…">
+  <button id="btn" onclick="importar()">Importar</button>
+
+  <div id="msg"></div>
+
+  <script>
+    function setMsg(text, cls) {
+      var m = document.getElementById('msg');
+      m.textContent = text;
+      m.className = cls;
+      m.style.display = 'block';
+    }
+    function importar() {
+      var url = document.getElementById('url').value;
+      if (!url.trim()) { setMsg('Pega la URL del libro fuente.', 'err'); return; }
+      document.getElementById('btn').disabled = true;
+      setMsg('Importando, espera…', 'ok');
+      google.script.run
+        .withSuccessHandler(function (res) {
+          setMsg('Listo. Filas agregadas: ' + res.agregadas + ' · Equipos: ' + res.equipos, 'ok');
+          document.getElementById('btn').disabled = false;
+        })
+        .withFailureHandler(function (err) {
+          setMsg(err.message || err, 'err');
+          document.getElementById('btn').disabled = false;
+        })
+        .importarDesdeUrl(url);
+    }
+  </script>
+</body>
+</html>
