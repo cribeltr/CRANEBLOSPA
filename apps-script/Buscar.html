@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #222; margin: 12px; }
+    h3 { margin: 0 0 8px; color: #1c4587; }
+    label { display: block; margin: 8px 0 2px; font-weight: bold; }
+    input, select, textarea { width: 100%; box-sizing: border-box; padding: 7px; }
+    button { background: #1c4587; color: #fff; border: 0; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-top: 8px; }
+    button.sec { background: #5f6368; }
+    .row { display: flex; gap: 6px; }
+    .row input { flex: 1; }
+    .card { background: #f1f3f4; border-radius: 6px; padding: 10px; margin-top: 10px; font-size: 12px; }
+    .card b { color: #1c4587; }
+    .mant { border: 1px solid #d0d0d0; border-radius: 6px; padding: 8px; margin-top: 8px; cursor: pointer; }
+    .mant:hover { background: #eef3fb; }
+    .mant.done { opacity: .6; cursor: default; }
+    .pill { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; color: #fff; }
+    .pill.p { background: #137333; } .pill.d { background: #b06000; }
+    #msg { margin-top: 10px; padding: 8px; border-radius: 4px; display: none; }
+    .ok { background: #e6f4ea; color: #137333; } .err { background: #fce8e6; color: #c5221f; }
+    .hidden { display: none; }
+    .muted { color: #666; }
+  </style>
+</head>
+<body>
+  <h3>Buscar equipo</h3>
+  <div class="row">
+    <input type="text" id="q" placeholder="Serie o N° de inventario" onkeydown="if(event.key==='Enter')buscar()">
+    <button onclick="buscar()">Buscar</button>
+  </div>
+  <p class="muted">Se respetan los ceros a la izquierda (0024 ≠ 24).</p>
+
+  <div id="ficha"></div>
+  <div id="lista"></div>
+
+  <!-- Formulario de registro -->
+  <div id="form" class="hidden">
+    <h3 id="formTitle"></h3>
+    <label>Fecha de mantención</label>
+    <input type="date" id="fecha">
+    <label>Ejecutor</label>
+    <select id="ejecutor"></select>
+    <label>Resultado</label>
+    <select id="resultado"></select>
+    <label>Estado del equipo</label>
+    <select id="estado"></select>
+    <label>Observación (opcional)</label>
+    <textarea id="obs" rows="2"></textarea>
+    <div class="row">
+      <button onclick="guardar()">Guardar</button>
+      <button class="sec" onclick="cancelar()">Cancelar</button>
+    </div>
+  </div>
+
+  <div id="msg"></div>
+
+  <script>
+    var CFG = null, SEL = null, MESES = [], SELALL = {};
+
+    google.script.run.withSuccessHandler(function (c) {
+      CFG = c; MESES = c.meses;
+      fill('ejecutor', c.ejecutores); fill('resultado', c.resultados); fill('estado', c.estados);
+    }).getConfig();
+
+    function fill(id, arr) {
+      var s = document.getElementById(id);
+      s.innerHTML = '<option value="">— seleccionar —</option>';
+      arr.forEach(function (v) { var o = document.createElement('option'); o.value = v; o.textContent = v; s.appendChild(o); });
+    }
+    function setMsg(t, cls) { var m = document.getElementById('msg'); m.textContent = t; m.className = cls; m.style.display = t ? 'block' : 'none'; }
+    function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]; }); }
+
+    function buscar() {
+      setMsg('', ''); cancelar();
+      document.getElementById('ficha').innerHTML = '';
+      document.getElementById('lista').innerHTML = '';
+      var q = document.getElementById('q').value;
+      google.script.run
+        .withSuccessHandler(render)
+        .withFailureHandler(function (e) { setMsg(e.message || e, 'err'); })
+        .buscarEquipo(q);
+    }
+
+    function render(data) {
+      var f = data.ficha;
+      document.getElementById('ficha').innerHTML =
+        '<div class="card"><b>' + esc(f.equipo) + '</b> — ' + esc(f.marca) + ' ' + esc(f.modelo) +
+        '<br>Serie: <b>' + esc(f.serie) + '</b> · Inv: ' + esc(f.inventario) +
+        '<br>' + esc(f.servicio) + ' / ' + esc(f.ubicacion) +
+        ' · Frec: ' + esc(f.frecuencia) + '</div>';
+
+      SELALL = {};
+      var html = '<p class="muted">Mantenciones programadas (' + data.mantenciones.length + '):</p>';
+      data.mantenciones.forEach(function (m, i) {
+        SELALL[i] = m;
+        var done = m.registrada;
+        html += '<div class="mant ' + (done ? 'done' : '') + '" onclick="' + (done ? '' : 'abrir(' + i + ')') + '">' +
+          '<b>' + esc(m.mes) + '</b> <span class="pill ' + (done ? 'd' : 'p') + '">' + (done ? 'registrada' : esc(m.programa)) + '</span>' +
+          (done ? '<br><span class="muted">' + esc(m.fechaMant) + ' · ' + esc(m.resultado) + ' · ' + esc(m.ejecutor) + '</span>' : '') +
+          '</div>';
+      });
+      document.getElementById('lista').innerHTML = html;
+    }
+
+    function abrir(i) {
+      SEL = SELALL[i];
+      setMsg('', '');
+      document.getElementById('formTitle').textContent = 'Registrar MP — ' + SEL.mes + ' (' + SEL.programa + ')';
+      document.getElementById('fecha').value = '';
+      document.getElementById('ejecutor').value = '';
+      document.getElementById('resultado').value = '';
+      document.getElementById('estado').value = '';
+      document.getElementById('obs').value = '';
+      document.getElementById('form').classList.remove('hidden');
+      document.getElementById('form').scrollIntoView();
+    }
+    function cancelar() { document.getElementById('form').classList.add('hidden'); SEL = null; }
+
+    function guardar() {
+      if (!SEL) return;
+      var fecha = document.getElementById('fecha').value;
+      if (!fecha) { setMsg('Ingresa la fecha de mantención.', 'err'); return; }
+      // Validación de mes en el cliente (el servidor la repite).
+      var mesFecha = MESES[parseInt(fecha.substring(5, 7), 10) - 1];
+      if (mesFecha !== SEL.mes) {
+        setMsg('El mes de la fecha (' + mesFecha + ') no coincide con el mes programado (' + SEL.mes + '). No se puede registrar.', 'err');
+        return;
+      }
+      var ejecutor = document.getElementById('ejecutor').value;
+      var resultado = document.getElementById('resultado').value;
+      var estado = document.getElementById('estado').value;
+      if (!ejecutor || !resultado || !estado) { setMsg('Completa ejecutor, resultado y estado del equipo.', 'err'); return; }
+
+      setMsg('Guardando…', 'ok');
+      google.script.run
+        .withSuccessHandler(function () { setMsg('Registro guardado para ' + SEL.mes + '.', 'ok'); cancelar(); buscar(); })
+        .withFailureHandler(function (e) { setMsg(e.message || e, 'err'); })
+        .registrarMantencion({
+          rowIndex: SEL.rowIndex, fecha: fecha, ejecutor: ejecutor,
+          resultado: resultado, estado: estado, observacion: document.getElementById('obs').value
+        });
+    }
+  </script>
+</body>
+</html>

@@ -280,15 +280,18 @@ siguientes columnas de gestión:
 
 ---
 
-## 12. Decisiones pendientes (a confirmar con el usuario)
+## 12. Decisiones tomadas
 
-1. **Plataforma de la aplicación:** ¿Google Apps Script (sobre la propia hoja),
-   aplicación web (p. ej. Python + API de Google Sheets) u otra?
-2. **Identidad ante conflicto:** si Serie e Inventario apuntan a equipos distintos,
-   ¿cuál prevalece? ¿Qué ocurre si la Serie está vacía?
-3. **Formato del ID Programación** (p. ej. `MP-2026-000123`).
-4. **Limpieza de series** con punto final u otros caracteres.
-5. **Carga inicial:** ¿se generan filas desde `PMP_2026` (plan) y se completan con
-   `Registro_MP-2026`, o solo desde una de las hojas?
-6. **Tolerancia de fecha:** ¿la validación es por mes calendario exacto, o se
-   admite la ventana de 30 días de las reprogramaciones C1/C5/C6/C7/C8?
+1. **Plataforma:** **Google Apps Script**, ligado a la hoja de Google Sheets
+   `Programación MP` (menú propio + barra lateral). Ver `apps-script/`.
+2. **Identidad del equipo:** **Serie** como identificador principal; si está
+   vacía, se usa el **N° de Inventario** como respaldo.
+3. **Validación de fecha:** por **mes calendario exacto**. Si el mes de la fecha
+   ingresada no coincide con el mes programado, se **impide** el registro.
+4. **Formato del ID Programación:** `MP-2026-000001` (correlativo de 6 dígitos).
+
+### Pendientes menores (no bloquean la implementación)
+
+- **Limpieza de series** con punto final u otros caracteres espurios: por ahora se
+  preservan tal cual (texto exacto); se puede agregar normalización si se confirma.
+- Integración de las hojas `Servicio tecnico` / `Bajas` (fuera de alcance actual).
